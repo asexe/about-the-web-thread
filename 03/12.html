@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Workers 示例：实时时间与斐波那契数列计算</title>
+</head>
+<body>
+  <h1>Web Workers 示例</h1>
+  <p>点击按钮开始计算斐波那契数列，并实时查看当前时间。</p>
+  <button onclick="startFibonacciCalculation()">开始计算斐波那契数列</button>
+  <p>当前时间: <span id="currentTime"></span></p>
+  <p>斐波那契数列: <span id="fibonacciNumbers"></span></p>
+
+  <script>
+    var worker;
+    var fibonacciNumbers = [];
+    var isCalculating = false;
+    var currentTimeElement = document.getElementById('currentTime');
+    var fibonacciElement = document.getElementById('fibonacciNumbers');
+
+    // 创建 Web Worker
+    function createWorker() {
+      if (typeof(Worker) !== "undefined") {
+        // Web Worker 脚本
+        var workerScript = `
+          self.onmessage = function(event) {
+            var n = event.data;
+            var fibonacci = function(n) {
+              if (n <= 1) return n;
+              return fibonacci(n - 1) + fibonacci(n - 2);
+            };
+            var result = fibonacci(n);
+            postMessage(result);
+          };
+        `;
+
+        var blob = new Blob([workerScript], { type: 'application/javascript' });
+        return new Worker(URL.createObjectURL(blob));
+      }
+    }
+
+    // 开始计算斐波那契数列
+    function startFibonacciCalculation() {
+      if (isCalculating) {
+        return;
+      }
+      isCalculating = true;
+      worker = createWorker();
+
+      // 接收 Worker 发来的斐波那契数
+      worker.onmessage = function(event) {
+        fibonacciNumbers.push(event.data);
+        fibonacciElement.textContent = fibonacciNumbers.join(', ');
+        // 每秒计算下一个斐波那契数
+        if (fibonacciNumbers.length < 50) { // 假设我们只计算前50个斐波那契数
+          setTimeout(function() {
+            worker.postMessage(fibonacciNumbers.length);
+          }, 1000);
+        } else {
+          isCalculating = false;
+          alert('斐波那契数列计算完毕！');
+        }
+      };
+
+      // 发送第一个斐波那契数的计算请求（第0个）  
+      worker.postMessage(0);
+    }
+
+    // 更新当前时间
+    function updateCurrentTime() {
+      currentTimeElement.textContent = new Date().toLocaleTimeString();
+      // 每秒更新一次时间
+      setTimeout(updateCurrentTime, 1000);
+    }
+
+    // 启动时间更新
+    updateCurrentTime();
+  </script>
+</body>
+</html>
